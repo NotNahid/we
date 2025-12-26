@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immersive Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0a0a0a;
+            /* Replaced heavy gradient with a subtle dark base */
+            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #0a0a0a 70%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            overflow-x: hidden;
+            overscroll-behavior: none; 
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+        }
+
+        /* Ambient animated background - OPTIMIZED: Reduced size & opacity */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.02) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+            /* Hardware Acceleration */
+            transform: translate3d(0,0,0); 
+        }
+
+        /* --- SCROLLBAR (Simplified for Performance) --- */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 15, 15, 1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 5px;
+            border: 2px solid rgba(15, 15, 15, 1);
+            transition: background 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Masonry Grid Layout */
+        .masonry-grid {
+            column-count: 3;
+            column-gap: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        @media (min-width: 640px) { .masonry-grid { column-count: 4; } }
+        @media (min-width: 1024px) { .masonry-grid { column-count: 5; } }
+        @media (min-width: 1400px) { .masonry-grid { column-count: 6; } }
+
+        /* Grid Item Styling */
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            /* Optimization: Skip rendering work for off-screen content */
+            content-visibility: auto; 
+            contain-intrinsic-size: 300px; 
+        }
+
+        .gallery-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Card Styling - Optimized: No Backdrop Filter, No Will-Change */
+        .gallery-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            background: #151515;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.4s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Subtle Overlay instead of Heavy Gradient */
+        .gallery-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.03);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        /* Hover State - Clean & Efficient */
+        .gallery-card:hover {
+            transform: translateY(-4px);
+            /* Classic deep shadow instead of colored glow */
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .gallery-card:hover::after {
+            opacity: 1;
+        }
+
+        .gallery-card img {
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: block;
+            width: 100%;
+            height: auto;
+            /* Prevent layout shifts */
+            aspect-ratio: attr(width) / attr(height); 
+        }
+
+        .gallery-card:hover img {
+            transform: scale(1.05);
+        }
+        
+        /* Lightbox Container */
+        #lightbox {
+            transition: opacity 0.3s ease;
+            /* FIXED: Added blur and translucent background */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            /* UPDATED: Reduced opacity from 0.75 to 0.6 for lighter feel */
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        /* Slide Container */
+        .slide-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Lightbox Image */
+        .lightbox-image {
+            position: absolute;
+            max-width: 95%;
+            max-height: 90%; 
+            object-fit: contain;
+            will-change: transform; /* Kept only for active lightbox image */
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            user-select: none;
+            -webkit-user-drag: none;
+            border-radius: 4px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            cursor: zoom-in;
+        }
+        
+        .lightbox-image.zoomed {
+            cursor: zoom-out;
+            cursor: move;
+            z-index: 50;
+        }
+
+        /* Controls UI */
+        .control-btn {
+            background: rgba(30, 30, 30, 0.8);
+            /* Removed heavy blur */
+            backdrop-filter: blur(8px); 
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+        }
+
+        .control-btn:hover {
+            background: rgba(50, 50, 50, 0.9);
+            transform: scale(1.05);
+            color: white;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Back to Top */
+        #backToTop {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        #backToTop.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        /* Counter */
+        .counter-badge {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+        }
+
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Main Grid -->
+    <main class="pt-8 pb-16 px-3 sm:px-6 max-w-[1920px] mx-auto min-h-screen">
+        <div id="galleryGrid" class="masonry-grid">
+            <!-- Items injected here -->
+        </div>
+    </main>
+
+    <!-- Back to Top Button -->
+    <button id="backToTop" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-8 right-8 z-30 w-12 h-12 rounded-full flex items-center justify-center text-white/80 shadow-xl hover:text-white">
+        <i class="fa-solid fa-arrow-up text-lg"></i>
+    </button>
+
+    <!-- Lightbox Overlay -->
+    <div id="lightbox" class="fixed inset-0 z-50 hidden opacity-0 outline-none touch-none" tabindex="-1" aria-modal="true">
+        
+        <!-- Controls Header -->
+        <div class="absolute top-0 left-0 right-0 p-4 z-[60] flex justify-between items-start pointer-events-none">
+            
+            <!-- Counter -->
+            <div class="counter-badge px-3 py-1.5 rounded-full pointer-events-auto">
+                <span id="lightboxCounter" class="text-white/80 text-xs font-mono tracking-widest"></span>
+            </div>
+
+            <!-- Right Controls -->
+            <div class="flex gap-3 pointer-events-auto">
+                <button id="downloadBtn" onclick="downloadCurrentImage()" class="control-btn w-10 h-10 flex items-center justify-center rounded-full text-white/80" title="Download High-Res JPG">
+                    <i class="fa-solid fa-download text-sm"></i>
+                </button>
+                <button id="closeLightbox" class="control-btn w-10 h-10 flex items-center justify-center rounded-full text-white/80" title="Close">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Nav Arrows -->
+        <button id="prevBtn" class="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-4 group focus:outline-none cursor-pointer" aria-label="Previous">
+             <div class="control-btn w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white">
+                <i class="fa-solid fa-chevron-left text-lg"></i>
+             </div>
+        </button>
+
+        <button id="nextBtn" class="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-4 group focus:outline-none cursor-pointer" aria-label="Next">
+             <div class="control-btn w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white">
+                <i class="fa-solid fa-chevron-right text-lg"></i>
+             </div>
+        </button>
+
+        <!-- Image Stage -->
+        <div id="imageContainer" class="slide-container p-0 md:p-8 w-full h-full"></div>
+        
+    </div>
+
+    <script>
+        // ==============================================================================
+        //  LINKS CONFIGURATION
+        // ==============================================================================
+        
+        const rawLinksString = `
+
+
+
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330181349_cujcps?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330181247_jmt771?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330181244_qdnf28?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175443_lwbi2t?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175422_ail1v5?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175409_eov58b?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175409_01_lpvlx3?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175403_ouecza?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330175100_ipcwdi?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174941_gmqemx?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174907_rywnk4?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174831_txwygn?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174828_crpp4d?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174704_woumgs?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174649_v07osw?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174641_fgbtee?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174537_bpkygb?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174355_c48ffc?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174252_nmbpli?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174246_ebhgrw?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174135_jwfnaz?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174119_rz1ang?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330174113_tgk1gv?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330173939_ueyab8?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330173934_ox1lpw?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330173732_sdxpys?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330173727_pubm2z?_a=BAMAMiTI0
+https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330173725_jmhrxs?_a=BAMAMiTI0
+
+
+
+
+        `;
+        
+        // --- Process Data ---
+        const galleryData = rawLinksString
+            .split('\n')
+            .map(link => link.trim())
+            .filter(link => link.length > 0)
+            .map((url, index) => ({ id: index, url }));
+
+        // --- DOM Elements ---
+        const grid = document.getElementById('galleryGrid');
+        const lightbox = document.getElementById('lightbox');
+        const imageContainer = document.getElementById('imageContainer');
+        const lightboxCounter = document.getElementById('lightboxCounter');
+        const backToTopBtn = document.getElementById('backToTop');
+        
+        let currentIdx = -1;
+        let cleanupTimer = null;
+        let isDownloading = false;
+        let transitionTimeout = null;
+
+        // --- Render Optimized Grid (Smart Thumbnails) ---
+        function renderGallery() {
+            grid.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+
+            galleryData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'gallery-item';
+                
+                // Optimized Thumbnail: width 500px, quality auto
+                let thumbnailUrl = item.url;
+                if (thumbnailUrl.includes('cloudinary.com') && thumbnailUrl.includes('/upload/')) {
+                    thumbnailUrl = thumbnailUrl.replace('/upload/', '/upload/w_500,c_scale/');
+                }
+
+                card.innerHTML = `
+                    <div class="gallery-card cursor-pointer" onclick="openLightbox(${index})">
+                         <div class="relative overflow-hidden"> 
+                            <img 
+                                src="${thumbnailUrl}" 
+                                alt="Image ${index + 1}" 
+                                loading="lazy"
+                                onload="this.closest('.gallery-item').classList.add('visible')"
+                            >
+                        </div>
+                    </div>
+                `;
+                fragment.appendChild(card);
+            });
+            
+            grid.appendChild(fragment);
+        }
+
+        // --- Preload Helpers ---
+        function preloadImage(idx) {
+            if (idx >= 0 && idx < galleryData.length) {
+                const img = new Image();
+                img.src = galleryData[idx].url; // High Res
+            }
+        }
+
+        // --- Lightbox Functions ---
+        function openLightbox(index) {
+            currentIdx = index;
+            lightbox.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            lightbox.focus(); 
+            
+            requestAnimationFrame(() => {
+                lightbox.classList.remove('opacity-0');
+                showImage(index, 'zoom'); 
+            });
+        }
+
+        function closeLightbox() {
+            lightbox.classList.add('opacity-0');
+            setTimeout(() => {
+                lightbox.classList.add('hidden');
+                imageContainer.innerHTML = '';
+            }, 300);
+            document.body.style.overflow = '';
+        }
+
+        function showImage(index, direction) {
+            preloadImage(index + 1);
+            preloadImage(index - 1);
+
+            const item = galleryData[index];
+
+            // Cleanup old images quickly
+            if (cleanupTimer) clearTimeout(cleanupTimer);
+            const exitingImages = imageContainer.querySelectorAll('.exiting');
+            exitingImages.forEach(img => img.remove());
+
+            // Handle current exiting image
+            const currentImg = imageContainer.querySelector('.lightbox-image:not(.exiting)');
+            if (currentImg) {
+                currentImg.classList.add('exiting');
+                currentImg.classList.remove('zoomed');
+                
+                // Simple exit transition
+                currentImg.style.opacity = '0';
+                currentImg.style.transform = direction === 'next' ? 'translateX(-30px)' : 'translateX(30px)';
+            }
+
+            // Create new image
+            const img = document.createElement('img');
+            img.src = item.url; // Full Res
+            img.className = 'lightbox-image';
+            img.draggable = false;
+            
+            // Interaction: Toggle Zoom
+            img.onclick = function(e) { toggleZoom(e); };
+
+            // Initial State for Animation
+            img.style.opacity = '0';
+            if (direction === 'next') img.style.transform = 'translateX(30px) scale(0.95)';
+            else if (direction === 'prev') img.style.transform = 'translateX(-30px) scale(0.95)';
+            else if (direction === 'zoom') img.style.transform = 'scale(0.9)';
+
+            imageContainer.appendChild(img);
+            lightboxCounter.textContent = `${index + 1} / ${galleryData.length}`;
+
+            // Trigger Animation
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (!img.classList.contains('zoomed')) {
+                         img.style.transform = 'translateX(0) scale(1)';
+                         img.style.opacity = '1';
+                    }
+                });
+            });
+
+            cleanupTimer = setTimeout(() => {
+                if (currentImg) currentImg.remove();
+                cleanupTimer = null;
+            }, 350); 
+        }
+
+        // --- Smooth Zoom & Pan Logic ---
+        function toggleZoom(e) {
+            const img = e.target;
+            
+            if (img.classList.contains('zoomed')) {
+                // Zoom Out
+                img.classList.remove('zoomed');
+                img.style.transform = 'translateX(0) scale(1)';
+                img.style.transformOrigin = 'center center';
+                img.onmousemove = null;
+                img.style.transition = ''; 
+                if(transitionTimeout) clearTimeout(transitionTimeout);
+            } else {
+                // Zoom In
+                const rect = img.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const xPercent = (x / rect.width) * 100;
+                const yPercent = (y / rect.height) * 100;
+
+                img.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+                img.classList.add('zoomed');
+                img.style.transform = 'scale(2.5)';
+                
+                // Mouse Tracking
+                img.onmousemove = function(e) {
+                    const w = img.offsetWidth;
+                    const h = img.offsetHeight;
+                    const xP = (e.offsetX / w) * 100;
+                    const yP = (e.offsetY / h) * 100;
+                    img.style.transformOrigin = `${xP}% ${yP}%`;
+                }
+
+                if(transitionTimeout) clearTimeout(transitionTimeout);
+                transitionTimeout = setTimeout(() => {
+                    if(img.classList.contains('zoomed')) {
+                        img.style.transition = 'transform 0.1s linear'; // Faster for tracking
+                    }
+                }, 300);
+            }
+        }
+
+        // --- Download Logic (Force JPG) ---
+        async function downloadCurrentImage() {
+            if (isDownloading || currentIdx === -1) return;
+            
+            const btn = document.getElementById('downloadBtn');
+            const icon = btn.querySelector('i');
+            const originalIconClass = icon.className;
+
+            try {
+                isDownloading = true;
+                icon.className = 'fa-solid fa-spinner fa-spin text-sm';
+                
+                let imageUrl = galleryData[currentIdx].url;
+                // Force JPG for Cloudinary
+                if (imageUrl.includes('cloudinary.com')) {
+                    imageUrl = imageUrl.replace('f_auto', 'f_jpg');
+                }
+                
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `image-${currentIdx + 1}.jpg`;
+                
+                document.body.appendChild(a);
+                a.click();
+                
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+            } catch (error) {
+                // Fallback
+                let fallbackUrl = galleryData[currentIdx].url.replace('f_auto', 'f_jpg');
+                window.open(fallbackUrl, '_blank');
+            } finally {
+                isDownloading = false;
+                setTimeout(() => { icon.className = originalIconClass; }, 500);
+            }
+        }
+
+        // --- Navigation ---
+        function next() {
+            if (currentIdx < galleryData.length - 1) {
+                currentIdx++;
+                showImage(currentIdx, 'next');
+            }
+        }
+
+        function prev() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                showImage(currentIdx, 'prev');
+            }
+        }
+
+        // --- Gestures ---
+        let touchStartX = 0;
+        const swipeThreshold = 50;
+
+        lightbox.addEventListener('touchstart', (e) => {
+            const img = document.querySelector('.lightbox-image:not(.exiting)');
+            if (img && img.classList.contains('zoomed')) return;
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        lightbox.addEventListener('touchend', (e) => {
+            if (!touchStartX) return;
+            const diff = touchStartX - e.changedTouches[0].screenX;
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) next(); else prev();
+            }
+            touchStartX = 0;
+        }, { passive: true });
+
+        // --- Events ---
+        
+        // NEW: Click Outside to Close
+        lightbox.addEventListener('click', (e) => {
+            // If user clicks the backdrop (lightbox div) or the slide container (empty space), close it.
+            if (e.target.id === 'lightbox' || e.target.id === 'imageContainer') {
+                closeLightbox();
+            }
+        });
+
+        document.getElementById('closeLightbox').addEventListener('click', closeLightbox);
+        document.getElementById('nextBtn').addEventListener('click', (e) => { e.stopPropagation(); next(); });
+        document.getElementById('prevBtn').addEventListener('click', (e) => { e.stopPropagation(); prev(); });
+        
+        window.addEventListener('keydown', (e) => {
+            if (lightbox.classList.contains('hidden')) return;
+            switch(e.key) {
+                case 'Escape': closeLightbox(); break;
+                case 'ArrowRight': next(); break;
+                case 'ArrowLeft': prev(); break;
+                case ' ': e.preventDefault(); next(); break;
+            }
+        });
+
+        // Debounced Scroll Listener
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            if (scrollTimeout) return;
+            scrollTimeout = setTimeout(() => {
+                if (window.scrollY > 500) backToTopBtn.classList.add('visible');
+                else backToTopBtn.classList.remove('visible');
+                scrollTimeout = null;
+            }, 100);
+        });
+
+        // Init
+        renderGallery();
+
+    </script>
+</body>
+</html>
