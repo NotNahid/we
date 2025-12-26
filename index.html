@@ -46,29 +46,34 @@
         ::-webkit-scrollbar-track { background: rgba(15, 15, 15, 1); }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 
-        /* Masonry Grid Layout */
+        /* --- NEW GRID LAYOUT (Table-wise / Row-based) --- */
         .masonry-grid {
-            column-count: 3;
-            column-gap: 0.75rem;
+            display: grid;
+            /* 3 columns on mobile as requested */
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px; /* Tighter gap for that "Gallery App" feel */
             position: relative;
             z-index: 1;
         }
         
-        @media (min-width: 640px) { .masonry-grid { column-count: 3; column-gap: 1rem; } }
-        @media (min-width: 768px) { .masonry-grid { column-count: 4; } }
-        @media (min-width: 1200px) { .masonry-grid { column-count: 5; } }
+        /* Responsive Breakpoints */
+        @media (min-width: 640px) { 
+            .masonry-grid { 
+                grid-template-columns: repeat(4, 1fr); 
+                gap: 1rem; /* Larger gap on bigger screens */
+            } 
+        }
+        @media (min-width: 1024px) { .masonry-grid { grid-template-columns: repeat(5, 1fr); } }
+        @media (min-width: 1400px) { .masonry-grid { grid-template-columns: repeat(6, 1fr); } }
 
         .gallery-item {
-            break-inside: avoid;
-            margin-bottom: 0.75rem;
             opacity: 0;
             transform: translateY(20px);
             transition: opacity 0.6s ease-out, transform 0.6s ease-out;
             content-visibility: auto; 
             contain-intrinsic-size: 300px; 
+            /* Removed margin-bottom since Grid gap handles it */
         }
-        
-        @media (min-width: 640px) { .gallery-item { margin-bottom: 1rem; } }
 
         .gallery-item.visible {
             opacity: 1;
@@ -78,11 +83,13 @@
         .gallery-card {
             position: relative;
             overflow: hidden;
-            border-radius: 8px;
+            border-radius: 0; /* Cleaner grid look on mobile */
             background: #151515;
             transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        @media (min-width: 640px) {
+            .gallery-card { border-radius: 8px; } /* Rounded corners only on desktop */
         }
 
         .gallery-card::after {
@@ -98,8 +105,8 @@
         @media (hover: hover) {
             .gallery-card:hover {
                 transform: translateY(-4px);
+                z-index: 10;
                 box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-                border-color: rgba(255, 255, 255, 0.15);
             }
             .gallery-card:hover::after { opacity: 1; }
             .gallery-card:hover img { transform: scale(1.05); }
@@ -109,8 +116,8 @@
             transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             display: block;
             width: 100%;
-            height: auto;
-            aspect-ratio: attr(width) / attr(height); 
+            height: 100%; /* Force fill */
+            object-fit: cover; /* Crop to square */
         }
 
         /* Lightbox Container */
@@ -151,12 +158,11 @@
         }
         
         .lightbox-image.zoomed {
-            cursor: move; /* Fallback */
+            cursor: move; 
             cursor: zoom-out;
             z-index: 50;
             max-width: none;
             max-height: none;
-            /* Important: Transition must match the mouse tracking update speed or be removed for tracking */
         }
         
         .lightbox-image.dragging {
@@ -208,7 +214,7 @@
 </head>
 <body class="min-h-screen">
 
-    <main class="pt-4 pb-16 px-2 sm:px-6 max-w-[1920px] mx-auto min-h-screen">
+    <main class="pt-4 pb-16 px-0 sm:px-6 max-w-[1920px] mx-auto min-h-screen">
         <div id="galleryGrid" class="masonry-grid"></div>
     </main>
 
@@ -252,7 +258,6 @@
     <script>
         // Data
         const rawLinksString = `
-
 
         https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20201103210544_uzvvre?_a=BAMAMiTI0
 https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20201103210541_rgbqwo?_a=BAMAMiTI0
@@ -414,7 +419,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
         let touchCurrent = { x: 0, y: 0 };
         let isDragging = false;
         let isZoomed = false;
-        let lastTapTime = 0;
         let activeImage = null;
         let transitionTimeout = null;
 
@@ -430,11 +434,12 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                     thumbnailUrl = thumbnailUrl.replace('/upload/', '/upload/w_500,c_scale/');
                 }
 
+                // CHANGED: Forced aspect-square and object-cover for standard table layout
                 card.innerHTML = `
                     <div class="gallery-card cursor-pointer" onclick="openLightbox(${index})">
-                         <div class="relative overflow-hidden bg-[#1a1a1a] aspect-[3/4]"> 
-                            <img src="${thumbnailUrl}" alt="Gallery image" loading="lazy"
-                                onload="this.closest('.gallery-item').classList.add('visible'); this.parentElement.classList.remove('aspect-[3/4]')">
+                         <div class="relative overflow-hidden bg-[#1a1a1a] aspect-square w-full"> 
+                            <img src="${thumbnailUrl}" class="w-full h-full object-cover" alt="Gallery image" loading="lazy"
+                                onload="this.closest('.gallery-item').classList.add('visible')">
                         </div>
                     </div>
                 `;
@@ -539,8 +544,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             });
         }
 
-        // --- RESTORED SMART ZOOM SYSTEM ---
-
         function addGestureListeners(el) {
             el.addEventListener('touchstart', handleTouchStart, { passive: false });
             el.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -549,28 +552,13 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
         }
 
         function handleClick(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTapTime;
-            
-            if (tapLength < 300 && tapLength > 0) {
-                // Double Tap triggers Smart Zoom
-                toggleZoom(e);
-                e.preventDefault();
-            } else {
-                // Single Tap - UI Toggle
-                setTimeout(() => {
-                    if (new Date().getTime() - lastTapTime >= 300 && !isZoomed) {
-                        toggleUi();
-                    }
-                }, 300);
-            }
-            lastTapTime = currentTime;
+            e.stopPropagation(); 
+            toggleZoom(e); 
         }
 
         function toggleZoom(e) {
             if (!activeImage) return;
 
-            // 1. Get exact click coordinates (Mouse or Touch)
             let clientX, clientY;
             if (e.changedTouches && e.changedTouches.length > 0) {
                 clientX = e.changedTouches[0].clientX;
@@ -581,21 +569,17 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             }
 
             if (isZoomed) {
-                // Zoom Out - Reset to clean state
                 activeImage.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 activeImage.style.transform = 'translate(0, 0) scale(1)';
-                // Important: Reset origin after transition or it looks weird
                 setTimeout(() => {
                     if (!isZoomed) activeImage.style.transformOrigin = 'center center';
                 }, 300);
                 activeImage.classList.remove('zoomed');
-                activeImage.onmousemove = null; // Remove mouse tracking
+                activeImage.onmousemove = null; 
                 isZoomed = false;
             } else {
-                // Zoom In - The "Smart" Way
                 const rect = activeImage.getBoundingClientRect();
                 
-                // If coordinates are missing (e.g. called programmatically), center it
                 if (!clientX) {
                     clientX = rect.left + rect.width / 2;
                     clientY = rect.top + rect.height / 2;
@@ -604,27 +588,22 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                 const x = clientX - rect.left;
                 const y = clientY - rect.top;
                 
-                // Calculate percentage position of click/tap
                 const xPercent = (x / rect.width) * 100;
                 const yPercent = (y / rect.height) * 100;
 
-                // Set origin point instantly
                 activeImage.style.transformOrigin = `${xPercent}% ${yPercent}%`;
                 activeImage.classList.add('zoomed');
                 activeImage.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
-                activeImage.style.transform = 'scale(2.5)';
+                // UPDATED: Zoom level adjusted to 1.35x as requested
+                activeImage.style.transform = 'scale(1.35)';
                 isZoomed = true;
                 toggleUi(false); 
 
-                // RESTORED: Mouse Tracking Logic (Desktop Pan)
                 activeImage.onmousemove = function(e) {
                     const w = activeImage.offsetWidth;
                     const h = activeImage.offsetHeight;
                     const xP = (e.offsetX / w) * 100;
                     const yP = (e.offsetY / h) * 100;
-                    
-                    // Update the view based on mouse position
-                    // We reduce transition time to 0 while tracking for instant response
                     activeImage.style.transition = 'none'; 
                     activeImage.style.transformOrigin = `${xP}% ${yP}%`;
                 }
@@ -638,13 +617,11 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             touchStart.y = e.touches[0].clientY;
             touchStart.time = new Date().getTime();
             
-            // If zoomed, we don't drag-to-dismiss, we pan (native behavior or custom)
             if (!isZoomed && activeImage) activeImage.classList.add('dragging');
             if (!isZoomed) lightbox.classList.add('dragging');
         }
 
         function handleTouchMove(e) {
-            // Disable custom swipe logic if zoomed (let browser handle standard pan if possible, or lock it)
             if (!isDragging || !activeImage) return;
             
             touchCurrent.x = e.touches[0].clientX;
@@ -653,12 +630,10 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             const diffX = touchCurrent.x - touchStart.x;
             const diffY = touchCurrent.y - touchStart.y;
             
-            // Allow default scrolling if zoomed (so user can pan around the zoomed image)
             if (isZoomed) return;
 
             e.preventDefault();
 
-            // Swipe to Dismiss (Vertical)
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
                 const resistance = 0.5;
                 const translateY = diffY * resistance;
@@ -666,7 +641,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                 const opacity = Math.max(0, 1 - Math.abs(diffY) / 300);
                 lightbox.style.backgroundColor = `rgba(0, 0, 0, ${opacity * 0.9})`;
             } 
-            // Swipe to Nav (Horizontal)
             else if (Math.abs(diffX) > 10) {
                 activeImage.style.transform = `translateX(${diffX}px)`;
             }
@@ -676,7 +650,7 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             if (!isDragging || !activeImage) return;
             isDragging = false;
             
-            if(isZoomed) return; // Don't handle swipe end logic if zoomed
+            if(isZoomed) return; 
 
             activeImage.classList.remove('dragging');
             lightbox.classList.remove('dragging');
@@ -687,7 +661,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             
             lightbox.style.backgroundColor = '';
 
-            // Vertical Dismiss
             if (Math.abs(diffY) > Math.abs(diffX)) {
                 if (Math.abs(diffY) > 100) {
                     activeImage.style.transition = 'transform 0.2s ease-out';
@@ -697,7 +670,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                     return;
                 }
             } 
-            // Horizontal Nav
             else {
                 const velocity = Math.abs(diffX) / timeDiff;
                 if ((Math.abs(diffX) > 80 || velocity > 0.5) && Math.abs(diffY) < 50) {
@@ -707,7 +679,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                 }
             }
             
-            // Snap back if no action
             activeImage.style.transform = '';
             touchCurrent = { x: 0, y: 0 };
         }
