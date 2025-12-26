@@ -23,7 +23,7 @@
             background-attachment: fixed;
             color: #f8fafc;
             overflow-x: hidden;
-            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior-y: none;
             position: relative;
             touch-action: pan-y;
         }
@@ -46,17 +46,17 @@
         ::-webkit-scrollbar-track { background: rgba(15, 15, 15, 1); }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 
-        /* Masonry Grid Layout - Optimized for Mobile UX */
+        /* Masonry Grid Layout */
         .masonry-grid {
-            column-count: 2; /* UX CHANGE: 2 columns is better for mobile touch targets */
+            column-count: 3;
             column-gap: 0.75rem;
             position: relative;
             z-index: 1;
         }
         
         @media (min-width: 640px) { .masonry-grid { column-count: 3; column-gap: 1rem; } }
-        @media (min-width: 1024px) { .masonry-grid { column-count: 4; } }
-        @media (min-width: 1400px) { .masonry-grid { column-count: 5; } }
+        @media (min-width: 768px) { .masonry-grid { column-count: 4; } }
+        @media (min-width: 1200px) { .masonry-grid { column-count: 5; } }
 
         .gallery-item {
             break-inside: avoid;
@@ -95,7 +95,6 @@
             pointer-events: none;
         }
 
-        /* Hover effects only on devices that support hover */
         @media (hover: hover) {
             .gallery-card:hover {
                 transform: translateY(-4px);
@@ -119,12 +118,12 @@
             transition: background-color 0.2s ease, backdrop-filter 0.2s ease;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            background: rgba(0, 0, 0, 0.9); /* Slightly darker for better mobile focus */
-            touch-action: none; /* Critical for handling gestures manually */
+            background: rgba(0, 0, 0, 0.9);
+            touch-action: none; 
         }
         
         #lightbox.dragging {
-            transition: none; /* Remove transition during drag for 1:1 feel */
+            transition: none; 
         }
 
         /* Slide Container */
@@ -147,23 +146,23 @@
             will-change: transform;
             user-select: none;
             -webkit-user-drag: none;
-            /* Improved shadow for separation */
             box-shadow: 0 0 50px rgba(0,0,0,0.5); 
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
         }
         
         .lightbox-image.zoomed {
-            cursor: move;
+            cursor: move; /* Fallback */
+            cursor: zoom-out;
             z-index: 50;
             max-width: none;
             max-height: none;
+            /* Important: Transition must match the mouse tracking update speed or be removed for tracking */
         }
         
         .lightbox-image.dragging {
             transition: none !important;
         }
 
-        /* Controls UI - Fade out capability */
         .ui-element {
             transition: opacity 0.3s ease, transform 0.3s ease;
         }
@@ -173,7 +172,6 @@
             pointer-events: none;
         }
 
-        /* Buttons */
         .control-btn {
             background: rgba(30, 30, 30, 0.8);
             backdrop-filter: blur(8px); 
@@ -184,11 +182,6 @@
         }
 
         .control-btn:active { transform: scale(0.90); }
-
-        /* Hide arrows on touch devices */
-        @media (hover: none) and (pointer: coarse) {
-            .nav-arrow { display: none; }
-        }
 
         #backToTop {
             opacity: 0;
@@ -210,49 +203,26 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(4px);
         }
-        
-        /* Loading Spinner */
-        .loader {
-            width: 30px;
-            height: 30px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            position: absolute;
-            z-index: 0;
-        }
-        
-        @keyframes spin { to { transform: rotate(360deg); } }
 
     </style>
 </head>
 <body class="min-h-screen">
 
-    <!-- Main Grid -->
     <main class="pt-4 pb-16 px-2 sm:px-6 max-w-[1920px] mx-auto min-h-screen">
-        <div id="galleryGrid" class="masonry-grid">
-            <!-- Items injected here -->
-        </div>
+        <div id="galleryGrid" class="masonry-grid"></div>
     </main>
 
-    <!-- Back to Top -->
     <button id="backToTop" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full flex items-center justify-center text-white/80 shadow-xl active:scale-90">
         <i class="fa-solid fa-arrow-up text-lg"></i>
     </button>
 
-    <!-- Lightbox Overlay -->
     <div id="lightbox" class="fixed inset-0 z-50 hidden opacity-0 outline-none" tabindex="-1" aria-modal="true">
         
-        <!-- Controls Header -->
         <div id="lightboxHeader" class="ui-element absolute top-0 left-0 right-0 p-4 z-[60] flex justify-between items-start pointer-events-none transition-opacity duration-300">
-            
-            <!-- Counter -->
             <div class="counter-badge px-3 py-1.5 rounded-full pointer-events-auto shadow-lg">
                 <span id="lightboxCounter" class="text-white/90 text-xs font-mono tracking-widest font-bold"></span>
             </div>
 
-            <!-- Right Controls -->
             <div class="flex gap-3 pointer-events-auto">
                 <button id="downloadBtn" onclick="downloadCurrentImage()" class="control-btn w-10 h-10 flex items-center justify-center rounded-full text-white/90" title="Download">
                     <i class="fa-solid fa-download text-sm"></i>
@@ -263,7 +233,6 @@
             </div>
         </div>
 
-        <!-- Nav Arrows (Hidden on mobile) -->
         <button id="prevBtn" class="nav-arrow ui-element absolute left-4 top-1/2 -translate-y-1/2 z-50 p-4 focus:outline-none cursor-pointer">
              <div class="control-btn w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white transition-colors">
                 <i class="fa-solid fa-chevron-left text-lg"></i>
@@ -276,16 +245,12 @@
              </div>
         </button>
 
-        <!-- Image Stage -->
         <div id="imageContainer" class="slide-container w-full h-full p-0 md:p-8"></div>
         
     </div>
 
     <script>
-        // ==============================================================================
-        //  DATA CONFIGURATION
-        // ==============================================================================
-        
+        // Data
         const rawLinksString = `
 https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330181349_cujcps?_a=BAMAMiTI0
 https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG20200330181247_jmt771?_a=BAMAMiTI0
@@ -319,7 +284,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
         
         const galleryData = rawLinksString.split('\n').map(l => l.trim()).filter(l => l.length > 0).map((url, i) => ({ id: i, url }));
 
-        // --- DOM Elements ---
         const grid = document.getElementById('galleryGrid');
         const lightbox = document.getElementById('lightbox');
         const imageContainer = document.getElementById('imageContainer');
@@ -331,15 +295,15 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
         let isDownloading = false;
         let isUiVisible = true;
         
-        // --- State for Gestures ---
+        // State
         let touchStart = { x: 0, y: 0, time: 0 };
         let touchCurrent = { x: 0, y: 0 };
         let isDragging = false;
         let isZoomed = false;
         let lastTapTime = 0;
         let activeImage = null;
+        let transitionTimeout = null;
 
-        // --- 1. RENDER GRID ---
         function renderGallery() {
             grid.innerHTML = '';
             const fragment = document.createDocumentFragment();
@@ -347,8 +311,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             galleryData.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'gallery-item';
-                
-                // Optimized Thumbnail: width 500px for sharp mobile 2-col
                 let thumbnailUrl = item.url;
                 if (thumbnailUrl.includes('cloudinary.com') && thumbnailUrl.includes('/upload/')) {
                     thumbnailUrl = thumbnailUrl.replace('/upload/', '/upload/w_500,c_scale/');
@@ -357,12 +319,8 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
                 card.innerHTML = `
                     <div class="gallery-card cursor-pointer" onclick="openLightbox(${index})">
                          <div class="relative overflow-hidden bg-[#1a1a1a] aspect-[3/4]"> 
-                            <img 
-                                src="${thumbnailUrl}" 
-                                alt="Gallery image" 
-                                loading="lazy"
-                                onload="this.closest('.gallery-item').classList.add('visible'); this.parentElement.classList.remove('aspect-[3/4]')"
-                            >
+                            <img src="${thumbnailUrl}" alt="Gallery image" loading="lazy"
+                                onload="this.closest('.gallery-item').classList.add('visible'); this.parentElement.classList.remove('aspect-[3/4]')">
                         </div>
                     </div>
                 `;
@@ -371,16 +329,13 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             grid.appendChild(fragment);
         }
 
-        // --- 2. LIGHTBOX CORE ---
         function openLightbox(index) {
             currentIdx = index;
+            history.pushState({ galleryOpen: true }, '', '');
             lightbox.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            
-            // Initial UI State
             isUiVisible = true;
             toggleUi(true);
-            
             requestAnimationFrame(() => {
                 lightbox.classList.remove('opacity-0');
                 updateImage();
@@ -388,6 +343,10 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
         }
 
         function closeLightbox() {
+            history.back();
+        }
+
+        function dismissLightbox() {
             lightbox.classList.add('opacity-0');
             setTimeout(() => {
                 lightbox.classList.add('hidden');
@@ -398,67 +357,63 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             document.body.style.overflow = '';
         }
 
+        window.addEventListener('popstate', (event) => {
+            if (!lightbox.classList.contains('hidden')) dismissLightbox();
+        });
+
         function updateImage(direction = 'none') {
-            // Clear container
-            imageContainer.innerHTML = '<div class="loader"></div>';
-            
-            // Update counter
             lightboxCounter.textContent = `${currentIdx + 1} / ${galleryData.length}`;
-            
-            // Preload next/prev
             if(galleryData[currentIdx + 1]) new Image().src = galleryData[currentIdx + 1].url;
             if(galleryData[currentIdx - 1]) new Image().src = galleryData[currentIdx - 1].url;
 
-            // Create Image
+            const currentImg = imageContainer.querySelector('.lightbox-image:not(.exiting)');
+            if (currentImg) {
+                currentImg.classList.add('exiting');
+                currentImg.classList.remove('zoomed');
+                currentImg.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                if (direction === 'next') currentImg.style.transform = 'translateX(-50px) scale(0.95)';
+                else if (direction === 'prev') currentImg.style.transform = 'translateX(50px) scale(0.95)';
+                currentImg.style.opacity = '0';
+                setTimeout(() => currentImg.remove(), 350);
+            }
+
             const img = document.createElement('img');
             img.src = galleryData[currentIdx].url;
             img.className = 'lightbox-image';
             img.draggable = false;
             
-            // Initial positioning for animation
             img.style.opacity = '0';
             if (direction === 'next') img.style.transform = 'translateX(50px) scale(0.95)';
-            if (direction === 'prev') img.style.transform = 'translateX(-50px) scale(0.95)';
+            else if (direction === 'prev') img.style.transform = 'translateX(-50px) scale(0.95)';
+            else img.style.transform = 'scale(0.95)';
 
-            img.onload = () => {
-                const loader = imageContainer.querySelector('.loader');
-                if(loader) loader.remove();
-                
-                img.style.opacity = '1';
-                img.style.transform = 'translateX(0) scale(1)';
-            };
-
-            // Gesture Events for the specific image
             addGestureListeners(img);
-            
             imageContainer.appendChild(img);
             activeImage = img;
             isZoomed = false;
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    img.style.opacity = '1';
+                    img.style.transform = 'translateX(0) scale(1)';
+                });
+            });
         }
 
         function next() {
-            if (currentIdx < galleryData.length - 1) {
-                currentIdx++;
-                updateImage('next');
-            } else {
-                // Bounce effect at end
-                if(activeImage) {
-                    activeImage.style.transform = 'translateX(-50px)';
-                    setTimeout(() => activeImage.style.transform = 'translateX(0)', 150);
-                }
-            }
+            if (currentIdx < galleryData.length - 1) { currentIdx++; updateImage('next'); }
+            else { bounce('left'); }
         }
 
         function prev() {
-            if (currentIdx > 0) {
-                currentIdx--;
-                updateImage('prev');
-            } else {
-                // Bounce effect at start
-                if(activeImage) {
-                    activeImage.style.transform = 'translateX(50px)';
-                    setTimeout(() => activeImage.style.transform = 'translateX(0)', 150);
-                }
+            if (currentIdx > 0) { currentIdx--; updateImage('prev'); }
+            else { bounce('right'); }
+        }
+
+        function bounce(dir) {
+            if(activeImage) {
+                activeImage.style.transform = dir === 'left' ? 'translateX(-50px)' : 'translateX(50px)';
+                setTimeout(() => activeImage.style.transform = 'translateX(0)', 150);
             }
         }
 
@@ -470,29 +425,27 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             });
         }
 
-        // --- 3. ADVANCED GESTURES (The "Gallery App" Feel) ---
-        
+        // --- RESTORED SMART ZOOM SYSTEM ---
+
         function addGestureListeners(el) {
             el.addEventListener('touchstart', handleTouchStart, { passive: false });
             el.addEventListener('touchmove', handleTouchMove, { passive: false });
             el.addEventListener('touchend', handleTouchEnd);
-            el.addEventListener('click', handleClick); // For double tap logic
+            el.addEventListener('click', handleClick); 
         }
 
-        // Double Tap / Single Tap Logic
         function handleClick(e) {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTapTime;
             
             if (tapLength < 300 && tapLength > 0) {
-                // Double Tap
+                // Double Tap triggers Smart Zoom
                 toggleZoom(e);
                 e.preventDefault();
             } else {
-                // Single Tap - Wait to see if it becomes a double tap
+                // Single Tap - UI Toggle
                 setTimeout(() => {
                     if (new Date().getTime() - lastTapTime >= 300 && !isZoomed) {
-                        // Confirmed Single Tap: Toggle UI
                         toggleUi();
                     }
                 }, 300);
@@ -502,38 +455,83 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
 
         function toggleZoom(e) {
             if (!activeImage) return;
-            
+
+            // 1. Get exact click coordinates (Mouse or Touch)
+            let clientX, clientY;
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
             if (isZoomed) {
-                // Zoom Out
+                // Zoom Out - Reset to clean state
+                activeImage.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 activeImage.style.transform = 'translate(0, 0) scale(1)';
+                // Important: Reset origin after transition or it looks weird
+                setTimeout(() => {
+                    if (!isZoomed) activeImage.style.transformOrigin = 'center center';
+                }, 300);
                 activeImage.classList.remove('zoomed');
+                activeImage.onmousemove = null; // Remove mouse tracking
                 isZoomed = false;
             } else {
-                // Zoom In
-                // Calculate simple center zoom for reliability
-                activeImage.style.transform = 'scale(2.5)';
+                // Zoom In - The "Smart" Way
+                const rect = activeImage.getBoundingClientRect();
+                
+                // If coordinates are missing (e.g. called programmatically), center it
+                if (!clientX) {
+                    clientX = rect.left + rect.width / 2;
+                    clientY = rect.top + rect.height / 2;
+                }
+
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                
+                // Calculate percentage position of click/tap
+                const xPercent = (x / rect.width) * 100;
+                const yPercent = (y / rect.height) * 100;
+
+                // Set origin point instantly
+                activeImage.style.transformOrigin = `${xPercent}% ${yPercent}%`;
                 activeImage.classList.add('zoomed');
+                activeImage.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                activeImage.style.transform = 'scale(2.5)';
                 isZoomed = true;
-                // Hide UI when zooming
-                toggleUi(false);
+                toggleUi(false); 
+
+                // RESTORED: Mouse Tracking Logic (Desktop Pan)
+                activeImage.onmousemove = function(e) {
+                    const w = activeImage.offsetWidth;
+                    const h = activeImage.offsetHeight;
+                    const xP = (e.offsetX / w) * 100;
+                    const yP = (e.offsetY / h) * 100;
+                    
+                    // Update the view based on mouse position
+                    // We reduce transition time to 0 while tracking for instant response
+                    activeImage.style.transition = 'none'; 
+                    activeImage.style.transformOrigin = `${xP}% ${yP}%`;
+                }
             }
         }
 
         function handleTouchStart(e) {
-            if (e.touches.length > 1) return; // Ignore multi-touch for now
-            
+            if (e.touches.length > 1) return;
             isDragging = true;
             touchStart.x = e.touches[0].clientX;
             touchStart.y = e.touches[0].clientY;
             touchStart.time = new Date().getTime();
             
-            // Disable transition for direct 1:1 movement
-            if (activeImage) activeImage.classList.add('dragging');
-            lightbox.classList.add('dragging');
+            // If zoomed, we don't drag-to-dismiss, we pan (native behavior or custom)
+            if (!isZoomed && activeImage) activeImage.classList.add('dragging');
+            if (!isZoomed) lightbox.classList.add('dragging');
         }
 
         function handleTouchMove(e) {
-            if (!isDragging || isZoomed || !activeImage) return;
+            // Disable custom swipe logic if zoomed (let browser handle standard pan if possible, or lock it)
+            if (!isDragging || !activeImage) return;
             
             touchCurrent.x = e.touches[0].clientX;
             touchCurrent.y = e.touches[0].clientY;
@@ -541,32 +539,31 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             const diffX = touchCurrent.x - touchStart.x;
             const diffY = touchCurrent.y - touchStart.y;
             
-            // Prevent default browser scrolling
+            // Allow default scrolling if zoomed (so user can pan around the zoomed image)
+            if (isZoomed) return;
+
             e.preventDefault();
 
-            // Logic: Is this a swipe to nav (Horizontal) or dismiss (Vertical)?
+            // Swipe to Dismiss (Vertical)
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
-                // Vertical - Swipe to Dismiss
-                // Only allow pulling down significantly
-                const resistance = 0.5; // Feel heavy
+                const resistance = 0.5;
                 const translateY = diffY * resistance;
-                
                 activeImage.style.transform = `translateY(${translateY}px) scale(${1 - Math.abs(diffY)/1000})`;
-                
-                // Fade out background based on drag distance
                 const opacity = Math.max(0, 1 - Math.abs(diffY) / 300);
                 lightbox.style.backgroundColor = `rgba(0, 0, 0, ${opacity * 0.9})`;
-                
-            } else if (Math.abs(diffX) > 10) {
-                // Horizontal - Navigation
+            } 
+            // Swipe to Nav (Horizontal)
+            else if (Math.abs(diffX) > 10) {
                 activeImage.style.transform = `translateX(${diffX}px)`;
             }
         }
 
         function handleTouchEnd(e) {
-            if (!isDragging || isZoomed || !activeImage) return;
+            if (!isDragging || !activeImage) return;
             isDragging = false;
             
+            if(isZoomed) return; // Don't handle swipe end logic if zoomed
+
             activeImage.classList.remove('dragging');
             lightbox.classList.remove('dragging');
             
@@ -574,42 +571,33 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             const diffY = touchCurrent.y - touchStart.y;
             const timeDiff = new Date().getTime() - touchStart.time;
             
-            // Reset background opacity
             lightbox.style.backgroundColor = '';
 
-            // --- 1. Handle Vertical Dismiss ---
+            // Vertical Dismiss
             if (Math.abs(diffY) > Math.abs(diffX)) {
-                if (Math.abs(diffY) > 100) { // Threshold to close
-                    // Animate out
+                if (Math.abs(diffY) > 100) {
                     activeImage.style.transition = 'transform 0.2s ease-out';
                     activeImage.style.transform = `translateY(${diffY > 0 ? window.innerHeight : -window.innerHeight}px)`;
                     activeImage.style.opacity = '0';
-                    setTimeout(closeLightbox, 200);
+                    setTimeout(closeLightbox, 200); 
                     return;
-                } else {
-                    // Snap back
-                    activeImage.style.transform = '';
+                }
+            } 
+            // Horizontal Nav
+            else {
+                const velocity = Math.abs(diffX) / timeDiff;
+                if ((Math.abs(diffX) > 80 || velocity > 0.5) && Math.abs(diffY) < 50) {
+                    if (diffX > 0) prev();
+                    else next();
                     return;
                 }
             }
-
-            // --- 2. Handle Horizontal Nav ---
-            const velocity = Math.abs(diffX) / timeDiff;
             
-            if (Math.abs(diffX) > 80 || velocity > 0.5) {
-                if (diffX > 0) prev();
-                else next();
-            } else {
-                // Snap back
-                activeImage.style.transform = '';
-            }
-            
-            // Reset coords
+            // Snap back if no action
+            activeImage.style.transform = '';
             touchCurrent = { x: 0, y: 0 };
         }
 
-
-        // --- 4. UTILITIES ---
         async function downloadCurrentImage() {
             if (isDownloading || currentIdx === -1) return;
             const btn = document.getElementById('downloadBtn');
@@ -639,7 +627,10 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             }
         }
 
-        // Global Listeners
+        lightbox.addEventListener('click', (e) => {
+             if (e.target.id === 'lightbox' || e.target.id === 'imageContainer') closeLightbox();
+        });
+
         document.getElementById('closeLightbox').addEventListener('click', closeLightbox);
         document.getElementById('nextBtn').addEventListener('click', (e) => { e.stopPropagation(); next(); });
         document.getElementById('prevBtn').addEventListener('click', (e) => { e.stopPropagation(); prev(); });
@@ -654,7 +645,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             }
         });
 
-        // Scroll watcher
         let scrollTimeout;
         window.addEventListener('scroll', () => {
             if (scrollTimeout) return;
@@ -665,7 +655,6 @@ https://res.cloudinary.com/da54i7wj7/image/upload/f_auto,q_auto/IMG2020033017372
             }, 100);
         });
 
-        // Init
         renderGallery();
 
     </script>
